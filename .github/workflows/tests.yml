@@ -1,0 +1,116 @@
+name: Test Setup VBA
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - dev*
+    paths-ignore:
+      - "**/README.md"
+      - ".gitattributes"
+      - ".devcontainer/**"
+
+jobs:
+  test-setup-vba:
+    strategy:
+      matrix:
+        windows-version: [windows-2025]
+    runs-on: ${{ matrix.windows-version }}
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run setup-vba (using own action)
+        id: setup_vba
+        uses: ./
+        with:
+          office-apps: Excel,Word
+
+      - name: Validate action outputs
+        shell: pwsh
+        run: |
+          $actual = "${{ steps.setup_vba.outputs.office-apps }}"
+          $expected = "Excel,Word"
+
+          Write-Host "Expected office-apps output: $expected"
+          Write-Host "Actual office-apps output:   $actual"
+
+          if ($actual -ne $expected) {
+            throw "Unexpected office-apps output."
+          }
+
+      - name: Validate VBA security registry settings
+        shell: pwsh
+        run: |
+          function Get-OfficeVersion([string]$app) {
+            $curVerPath = "Registry::HKEY_CLASSES_ROOT\$app.Application\CurVer"
+            if (-not (Test-Path $curVerPath)) {
+              throw "Missing registry path: $curVerPath"
+            }
+            $curVer = (Get-ItemProperty -Path $curVerPath).'(default)'
+            return $curVer.Replace("$app.Application.", "") + ".0"
+          }
+
+          function Assert-RegistryValueAnyPath([string[]]$paths, [string]$name, [int]$expected) {
+            $matched = $false
+            foreach ($path in $paths) {
+              if (-not (Test-Path $path)) {
+                continue
+              }
+
+              $value = (Get-ItemProperty -Path $path -Name $name -ErrorAction SilentlyContinue).$name
+              if ($null -ne $value -and [int]$value -eq $expected) {
+                Write-Host "Validated $name=$expected at $path"
+                $matched = $true
+                break
+              }
+            }
+
+            if (-not $matched) {
+              throw "Could not validate $name=$expected in any expected registry path."
+            }
+          }
+
+          $apps = @("Excel", "Word")
+          foreach ($app in $apps) {
+            $version = Get-OfficeVersion -app $app
+
+            $accessVbomPaths = @(
+              "HKCU:\Software\Microsoft\Office\$version\$app\Security",
+              "HKLM:\Software\Microsoft\Office\$version\$app\Security",
+              "HKLM:\Software\WOW6432Node\Microsoft\Office\$version\$app\Security",
+              "HKCU:\Software\Microsoft\Office\$version\Common\TrustCenter",
+              "HKLM:\Software\Microsoft\Office\$version\Common\TrustCenter"
+            )
+
+            $macroPaths = @(
+              "HKCU:\Software\Microsoft\Office\$version\$app\Security",
+              "HKLM:\Software\Microsoft\Office\$version\$app\Security"
+            )
+
+            Assert-RegistryValueAnyPath -paths $accessVbomPaths -name "AccessVBOM" -expected 1
+            Assert-RegistryValueAnyPath -paths $macroPaths -name "VBAWarnings" -expected 1
+          }
+
+      - name: Validate COM automation is available
+        shell: pwsh
+        run: |
+          foreach ($app in @("Excel", "Word")) {
+            $com = $null
+            try {
+              $com = New-Object -ComObject "$app.Application"
+              Write-Host "$app COM automation is available."
+            }
+            finally {
+              if ($null -ne $com) {
+                try { $com.Quit() } catch {}
+                try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($com) | Out-Null } catch {}
+              }
+            }
+          }
