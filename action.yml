@@ -1,0 +1,50 @@
+name: "Setup VBA"
+description: "Prepare Office apps for VBA automation on GitHub Actions runners."
+
+branding:
+  icon: "settings"
+  color: "blue"
+
+inputs:
+  office-apps:
+    description: "Comma-separated Office apps to prepare (Excel, Word, PowerPoint, Access)."
+    required: false
+    default: "Excel,Word,PowerPoint,Access"
+  install-office:
+    description: "Whether to install Microsoft Office via Chocolatey."
+    required: false
+    default: "true"
+  office-package:
+    description: "Chocolatey package used to install Office when install-office=true."
+    required: false
+    default: "office365proplus"
+
+outputs:
+  office-apps:
+    description: "Normalized, comma-separated Office apps that were prepared."
+    value: ${{ steps.setup_vba.outputs.office-apps }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Install Office"
+      if: inputs.install-office == 'true'
+      id: install_office
+      shell: pwsh
+      run: choco install "${{ inputs.office-package }}" -y
+
+    - name: "Display Chocolatey logs if install fails"
+      if: failure() && steps.install_office.outcome == 'failure'
+      shell: pwsh
+      run: |
+        if (Test-Path -Path "C:\ProgramData\chocolatey\logs\chocolatey.log") {
+          Write-Host "============ Chocolatey Log Contents ============"
+          Get-Content -Path "C:\ProgramData\chocolatey\logs\chocolatey.log"
+          Write-Host "============ End of Chocolatey Logs ============="
+        }
+
+    - name: "Setup VBA environment"
+      id: setup_vba
+      shell: pwsh
+      run: |
+        ${{ github.action_path }}\scripts\Setup-VBA.ps1 -OfficeApps "${{ inputs.office-apps }}"
