@@ -1,5 +1,5 @@
 name: "Setup VBA"
-description: "Prepare Office apps for VBA automation on GitHub Actions runners."
+description: "Set up your GitHub Actions workflow to run VBA automations on a Windows runner."
 
 branding:
   icon: "settings"
