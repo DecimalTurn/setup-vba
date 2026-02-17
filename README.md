@@ -34,7 +34,7 @@ jobs:
 	build:
 		runs-on: windows-latest
 		steps:
-			- uses: actions/checkout@v4
+			- uses: actions/checkout@v6
 
 			- name: Setup VBA runtime
 				uses: DecimalTurn/setup-vba@main
