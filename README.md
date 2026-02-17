@@ -37,19 +37,6 @@ on:
     paths-ignore:
       - 'README.md'
 
-permissions:
-  contents: read
-  ```yaml
-  name: Build VBA
-
-  on:
-    workflow_dispatch:
-    push:
-      branches:
-        - main
-      paths-ignore:
-        - 'README.md'
-
   permissions:
     contents: read
     id-token: write
