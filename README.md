@@ -1,3 +1,6 @@
+[![GitHub release](https://img.shields.io/github/v/release/DecimalTurn/setup-vba?style=flat-square)](https://github.com/DecimalTurn/setup-vba/releases)
+[![GitHub license](https://img.shields.io/github/license/DecimalTurn/setup-vba?style=flat-square)](LICENSE)
+[![CI](https://github.com/DecimalTurn/setup-vba/actions/workflows/tests.yml/badge.svg)](.github/workflows/tests.yml)
 
 # setup-vba
 
