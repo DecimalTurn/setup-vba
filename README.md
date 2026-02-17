@@ -6,7 +6,7 @@
 
 GitHub Action to prepare a Windows runner for VBA automation.
 
-Originally part of [VBA-Build](https://github.com/DecimalTurn/VBA-Build) [![VBA-Build stars](https://img.shields.io/github/stars/DecimalTurn/VBA-Build?style=flat-square&label=%20%E2%AD%90)](https://github.com/DecimalTurn/VBA-Build), this action was extracted as a reusable setup step for Office and VBA automation so `VBA-Build` can stay focused on build and test workflows.
+Originally part of [VBA-Build](https://github.com/DecimalTurn/VBA-Build), this action was extracted as a reusable setup step for Office and VBA automation so `VBA-Build` can stay focused on build and test workflows.
 
 It performs three setup tasks:
 - Install Microsoft Office (optional, enabled by default)
