@@ -1,6 +1,6 @@
 [![GitHub release](https://img.shields.io/github/v/release/DecimalTurn/setup-vba?style=flat-square)](https://github.com/DecimalTurn/setup-vba/releases)
 [![GitHub license](https://img.shields.io/github/license/DecimalTurn/setup-vba?style=flat-square)](LICENSE)
-[![GitHub branch status](https://img.shields.io/github/check-runs/DecimalTurn/setup-vba/latest)](https://github.com/DecimalTurn/setup-vba/actions/workflows/tests.yml)
+[![GitHub branch status](https://img.shields.io/github/check-runs/DecimalTurn/setup-vba/main)](https://github.com/DecimalTurn/setup-vba/actions/workflows/tests.yml)
 
 # setup-vba
 
