@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-xlsm:
-    runs-on: ubuntu-latest
+    runs-on: windows-2025
 
     steps:
       - name: Checkout
@@ -21,29 +21,37 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Prepare Office apps
+        uses: ./
+        with:
+          office-apps: Excel
+
       - name: Initialize sample vbapm project
-        shell: bash
+        shell: pwsh
         run: |
-          mkdir -p vbapm-sample
-          cd vbapm-sample
+          New-Item -ItemType Directory -Path vbapm-sample -Force | Out-Null
+          Set-Location vbapm-sample
           npx -y vbapm init --target xlsm --name ci-build --no-git
 
       - name: Build xlsm target
-        shell: bash
+        shell: pwsh
         run: |
-          cd vbapm-sample
+          Set-Location vbapm-sample
           npx -y vbapm build --target xlsm
 
       - name: Collect built workbook
-        shell: bash
+        shell: pwsh
         run: |
-          mkdir -p artifacts
-          find vbapm-sample -type f -name "*.xlsm" -print -exec cp {} artifacts/ \;
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          $files = Get-ChildItem -Path vbapm-sample -Recurse -Filter *.xlsm -File
+          foreach ($file in $files) {
+            Copy-Item -Path $file.FullName -Destination artifacts -Force
+            Write-Host "Collected $($file.FullName)"
+          }
 
-          if ! compgen -G "artifacts/*.xlsm" > /dev/null; then
-            echo "No .xlsm files were produced by vbapm build."
-            exit 1
-          fi
+          if (-not (Test-Path "artifacts\*.xlsm")) {
+            throw "No .xlsm files were produced by vbapm build."
+          }
 
       - name: Upload workbook artifact
         uses: actions/upload-artifact@v4
