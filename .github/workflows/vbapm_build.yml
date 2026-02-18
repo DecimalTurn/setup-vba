@@ -19,44 +19,51 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "18"
 
       - name: Prepare Office apps
         uses: ./
         with:
           office-apps: Excel
 
-      - name: Install vbapm
+      - name: Install vbapm globally
         shell: pwsh
         run: |
-          npm install --no-save vbapm@0.6.3-alpha
+          npm install -g vbapm
 
-      - name: Patch vbapm Windows script
+      - name: Verify installation
         shell: pwsh
         run: |
-          $path = "node_modules/vbapm/run-scripts/run.ps1"
-          $content = Get-Content -Path $path -Raw
-          $content = $content.Replace('$UnescapedArgs += Unescape $arg', '$UnescapedArgs += ($arg -replace ''\^q'', ''"'')')
-          Set-Content -Path $path -Value $content
+          vba --version
+          vba --help
 
-      - name: Initialize sample vbapm project
+      - name: Create a new xlsm project
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path vbapm-sample -Force | Out-Null
-          Set-Location vbapm-sample
-          npx vbapm init --target xlsm --name ci-build --no-git
+          vba new my-project.xlsm
 
-      - name: Build xlsm target
+      - name: Build project
         shell: pwsh
         run: |
-          Set-Location vbapm-sample
-          npx vbapm build --target xlsm
+          Set-Location my-project
+          vba build
+
+      - name: Verify build output exists
+        shell: pwsh
+        run: |
+          if (Test-Path "my-project/build/my-project.xlsm") {
+            Write-Host "Build succeeded: my-project/build/my-project.xlsm exists"
+          } else {
+            Write-Error "Build failed: my-project/build/my-project.xlsm not found"
+            Get-ChildItem -Recurse my-project/build -ErrorAction SilentlyContinue | Select-Object FullName
+            exit 1
+          }
 
       - name: Collect built workbook
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
-          $files = Get-ChildItem -Path vbapm-sample -Recurse -Filter *.xlsm -File
+          $files = Get-ChildItem -Path my-project/build -Recurse -Filter *.xlsm -File
           foreach ($file in $files) {
             Copy-Item -Path $file.FullName -Destination artifacts -Force
             Write-Host "Collected $($file.FullName)"
