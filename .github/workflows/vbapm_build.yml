@@ -26,18 +26,31 @@ jobs:
         with:
           office-apps: Excel
 
+      - name: Install vbapm
+        shell: pwsh
+        run: |
+          npm install --no-save vbapm@0.6.3-alpha
+
+      - name: Patch vbapm Windows script
+        shell: pwsh
+        run: |
+          $path = "node_modules/vbapm/run-scripts/run.ps1"
+          $content = Get-Content -Path $path -Raw
+          $content = $content.Replace('$UnescapedArgs += Unescape $arg', '$UnescapedArgs += ($arg -replace ''\^q'', ''"'')')
+          Set-Content -Path $path -Value $content
+
       - name: Initialize sample vbapm project
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path vbapm-sample -Force | Out-Null
           Set-Location vbapm-sample
-          npx -y vbapm init --target xlsm --name ci-build --no-git
+          npx vbapm init --target xlsm --name ci-build --no-git
 
       - name: Build xlsm target
         shell: pwsh
         run: |
           Set-Location vbapm-sample
-          npx -y vbapm build --target xlsm
+          npx vbapm build --target xlsm
 
       - name: Collect built workbook
         shell: pwsh
