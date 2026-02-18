@@ -1,0 +1,52 @@
+name: Build Excel with vbapm
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev-vbapm
+    paths:
+      - ".github/workflows/vbapm_build.yml"
+
+jobs:
+  build-xlsm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Initialize sample vbapm project
+        shell: bash
+        run: |
+          mkdir -p vbapm-sample
+          cd vbapm-sample
+          npx -y vbapm init --target xlsm --name ci-build --no-git
+
+      - name: Build xlsm target
+        shell: bash
+        run: |
+          cd vbapm-sample
+          npx -y vbapm build --target xlsm
+
+      - name: Collect built workbook
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          find vbapm-sample -type f -name "*.xlsm" -print -exec cp {} artifacts/ \;
+
+          if ! compgen -G "artifacts/*.xlsm" > /dev/null; then
+            echo "No .xlsm files were produced by vbapm build."
+            exit 1
+          fi
+
+      - name: Upload workbook artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vbapm-xlsm
+          path: artifacts/*.xlsm
