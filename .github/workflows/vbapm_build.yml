@@ -4,7 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - dev-vbapm
+      - main
+      - dev-*
     paths:
       - ".github/workflows/vbapm_build.yml"
 
