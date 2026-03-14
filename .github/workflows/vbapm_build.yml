@@ -1,0 +1,80 @@
+name: Build Excel with vbapm
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev-vbapm
+    paths:
+      - ".github/workflows/vbapm_build.yml"
+
+jobs:
+  build-xlsm:
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Prepare Office apps
+        uses: ./
+        with:
+          office-apps: Excel
+
+      - name: Install vbapm globally
+        shell: pwsh
+        run: |
+          npm install -g vbapm
+
+      - name: Verify installation
+        shell: pwsh
+        run: |
+          vba --version
+          vba --help
+
+      - name: Create a new xlsm project
+        shell: pwsh
+        run: |
+          vba new my-project.xlsm
+
+      - name: Build project
+        shell: pwsh
+        run: |
+          Set-Location my-project
+          vba build
+
+      - name: Verify build output exists
+        shell: pwsh
+        run: |
+          if (Test-Path "my-project/build/my-project.xlsm") {
+            Write-Host "Build succeeded: my-project/build/my-project.xlsm exists"
+          } else {
+            Write-Error "Build failed: my-project/build/my-project.xlsm not found"
+            Get-ChildItem -Recurse my-project/build -ErrorAction SilentlyContinue | Select-Object FullName
+            exit 1
+          }
+
+      - name: Collect built workbook
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          $files = Get-ChildItem -Path my-project/build -Recurse -Filter *.xlsm -File
+          foreach ($file in $files) {
+            Copy-Item -Path $file.FullName -Destination artifacts -Force
+            Write-Host "Collected $($file.FullName)"
+          }
+
+          if (-not (Test-Path "artifacts\*.xlsm")) {
+            throw "No .xlsm files were produced by vbapm build."
+          }
+
+      - name: Upload workbook artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vbapm-xlsm
+          path: artifacts/*.xlsm
