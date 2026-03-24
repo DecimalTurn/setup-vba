@@ -12,6 +12,8 @@ on:
       - "**/README.md"
       - ".gitattributes"
       - ".devcontainer/**"
+      - ".github/workflows/post_release.yml"
+      - ".github/workflows/prepare_release.yml"
 
 jobs:
   test-setup-vba:
