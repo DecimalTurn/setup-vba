@@ -12,6 +12,11 @@ on:
           - major
           - minor
           - patch
+      remove_suffix:
+        description: "Remove pre-release suffix (e.g. -alpha)"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -32,14 +37,19 @@ jobs:
         id: get_tag
         shell: bash
         run: |
-          latest_tag=$(git tag --sort=-v:refname | sed -nE '/^v?[0-9]+\.[0-9]+\.[0-9]+$/p' | head -n1)
+          latest_tag=$(git tag --sort=-v:refname | sed -nE '/^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/p' | head -n1)
           echo "Latest tag: $latest_tag"
 
           if [[ -z "$latest_tag" ]]; then
-            echo "tag=0.0.0" >> "$GITHUB_OUTPUT"
+            current="0.0.0"
           else
-            echo "tag=${latest_tag#v}" >> "$GITHUB_OUTPUT"
+            current="${latest_tag#v}"
           fi
+
+          base="${current%%-*}"
+          suffix="${current#"$base"}"; suffix="${suffix#-}"
+          echo "tag=$base" >> "$GITHUB_OUTPUT"
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
 
       - name: Calculate next version
         id: bump_version
@@ -57,23 +67,68 @@ jobs:
           esac
 
           new_tag="v${major}.${minor}.${patch}"
+
+          suffix="${{ steps.get_tag.outputs.suffix }}"
+          if [[ -n "$suffix" && "${{ github.event.inputs.remove_suffix }}" != "true" ]]; then
+            new_tag="${new_tag}-${suffix}"
+          fi
+
           echo "New tag: $new_tag"
           echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
 
-      - name: Create and push Git tag
+      - name: Update CHANGELOG.md
+        shell: bash
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.new_tag }}"
+          NEW_VERSION="${NEW_VERSION#v}"
+          TODAY="$(date +%Y-%m-%d)"
+
+          if ! grep -q "^## \[$NEW_VERSION\]" CHANGELOG.md; then
+            awk -v ver="$NEW_VERSION" -v dt="$TODAY" '
+              {
+                print
+                if (!inserted && $0 == "## [Unreleased]") {
+                  print ""
+                  print "## [" ver "] - " dt
+                  inserted=1
+                }
+              }
+            ' CHANGELOG.md > CHANGELOG.md.tmp
+            mv CHANGELOG.md.tmp CHANGELOG.md
+          fi
+
+          release_url="https://github.com/${{ github.repository }}/releases/tag/${{ steps.bump_version.outputs.new_tag }}"
+          if ! grep -q "^\[$NEW_VERSION\]:" CHANGELOG.md; then
+            echo "[$NEW_VERSION]: $release_url" >> CHANGELOG.md
+          fi
+
+      - name: Commit changes
+        id: commit
         shell: bash
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git tag "${{ steps.bump_version.outputs.new_tag }}"
-          git push origin "${{ steps.bump_version.outputs.new_tag }}"
+          git add CHANGELOG.md
+          git commit -m "chore: bump version to ${{ steps.bump_version.outputs.new_tag }}"
+          git push origin ${{ github.ref_name }}
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Create Draft Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.bump_version.outputs.new_tag }}
-          target_commitish: ${{ github.ref_name }}
+          target_commitish: ${{ steps.commit.outputs.sha }}
           generate_release_notes: true
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add release link to summary
+        run: |
+          release_url="https://github.com/${{ github.repository }}/releases/tag/${{ steps.bump_version.outputs.new_tag }}"
+          {
+            echo "## Release prepared"
+            echo ""
+            echo "- Tag: \`${{ steps.bump_version.outputs.new_tag }}\`"
+            echo "- Draft release: [$release_url]($release_url)"
+          } >> "$GITHUB_STEP_SUMMARY"
