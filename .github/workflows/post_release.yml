@@ -43,6 +43,8 @@ jobs:
           release_tag="${{ steps.resolve.outputs.release_tag }}"
           major_tag="${{ steps.resolve.outputs.major_tag }}"
 
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
           git fetch --tags --force
           target_sha="$(git rev-list -n 1 "$release_tag")"
 
