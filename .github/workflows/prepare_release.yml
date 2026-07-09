@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version_bump:
-        description: "Which part of the version to bump (major, minor, patch)"
+        description: "Which part of the version to bump"
         required: true
         default: "patch"
         type: choice
@@ -12,6 +12,7 @@ on:
           - major
           - minor
           - patch
+          - no-bump
       remove_suffix:
         description: "Remove pre-release suffix (e.g. -alpha)"
         required: false
@@ -24,18 +25,19 @@ permissions:
 jobs:
   prepare-release:
     runs-on: ubuntu-latest
-
+    outputs:
+      tag: ${{ steps.next_version.outputs.tag }}
+      sha: ${{ steps.commit.outputs.sha }}
+      release_url: ${{ steps.create_draft_release.outputs.url }}
     steps:
-      - name: Checkout selected branch
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Get latest tag
-        id: get_tag
-        shell: bash
+      - name: Get current version from git tags
+        id: current_version
         run: |
           latest_tag=$(git tag --sort=-v:refname | sed -nE '/^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/p' | head -n1)
           echo "Latest tag: $latest_tag"
@@ -47,88 +49,106 @@ jobs:
           fi
 
           base="${current%%-*}"
-          suffix="${current#"$base"}"; suffix="${suffix#-}"
-          echo "tag=$base" >> "$GITHUB_OUTPUT"
-          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+          if [[ "$current" == *-* ]]; then
+            suffix="${current#*-}"
+          else
+            suffix=""
+          fi
+          echo "Current version: $current (base=$base, suffix=$suffix)"
+          echo "base=$base" >> $GITHUB_OUTPUT
+          echo "suffix=$suffix" >> $GITHUB_OUTPUT
 
       - name: Calculate next version
-        id: bump_version
-        shell: bash
+        id: next_version
         run: |
-          IFS='.' read -r major minor patch <<< "${{ steps.get_tag.outputs.tag }}"
+          IFS='.' read -r major minor patch <<< "${{ steps.current_version.outputs.base }}"
 
-          case "${{ github.event.inputs.version_bump }}" in
-            major)
-              ((major+=1)); minor=0; patch=0 ;;
-            minor)
-              ((minor+=1)); patch=0 ;;
-            patch)
-              ((patch+=1)) ;;
-          esac
-
-          new_tag="v${major}.${minor}.${patch}"
-
-          suffix="${{ steps.get_tag.outputs.suffix }}"
-          if [[ -n "$suffix" && "${{ github.event.inputs.remove_suffix }}" != "true" ]]; then
-            new_tag="${new_tag}-${suffix}"
+          if [[ "${{ github.event.inputs.version_bump }}" == "no-bump" ]]; then
+            new_version="${{ steps.current_version.outputs.base }}"
+            suffix="${{ steps.current_version.outputs.suffix }}"
+            if [[ -n "$suffix" && "${{ github.event.inputs.remove_suffix }}" != "true" ]]; then
+              new_version="$new_version-$suffix"
+            fi
+            echo "No version bump selected."
+          else
+            case "${{ github.event.inputs.version_bump }}" in
+              major) ((major+=1)); minor=0; patch=0 ;;
+              minor) ((minor+=1)); patch=0 ;;
+              patch) ((patch+=1)) ;;
+            esac
+            new_version="$major.$minor.$patch"
+            suffix="${{ steps.current_version.outputs.suffix }}"
+            if [[ -n "$suffix" && "${{ github.event.inputs.remove_suffix }}" != "true" ]]; then
+              new_version="$new_version-$suffix"
+            fi
+            echo "Next version: $new_version"
           fi
-
-          echo "New tag: $new_tag"
-          echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
+          echo "version=$new_version" >> $GITHUB_OUTPUT
+          echo "tag=v$new_version" >> $GITHUB_OUTPUT
 
       - name: Update CHANGELOG.md
-        shell: bash
+        if: github.event.inputs.version_bump != 'no-bump'
         run: |
-          NEW_VERSION="${{ steps.bump_version.outputs.new_tag }}"
-          NEW_VERSION="${NEW_VERSION#v}"
-          TODAY="$(date +%Y-%m-%d)"
+          today=$(date +%Y-%m-%d)
+          version="${{ steps.next_version.outputs.version }}"
 
-          if ! grep -q "^## \[$NEW_VERSION\]" CHANGELOG.md; then
-            awk -v ver="$NEW_VERSION" -v dt="$TODAY" '
-              {
-                print
-                if (!inserted && $0 == "## [Unreleased]") {
-                  print ""
-                  print "## [" ver "] - " dt
-                  inserted=1
-                }
-              }
-            ' CHANGELOG.md > CHANGELOG.md.tmp
-            mv CHANGELOG.md.tmp CHANGELOG.md
+          if ! grep -q '^## \[Unreleased\]' CHANGELOG.md; then
+            echo "CHANGELOG.md is missing the '## [Unreleased]' header."
+            exit 1
           fi
 
-          release_url="https://github.com/${{ github.repository }}/releases/tag/${{ steps.bump_version.outputs.new_tag }}"
-          if ! grep -q "^\[$NEW_VERSION\]:" CHANGELOG.md; then
-            echo "[$NEW_VERSION]: $release_url" >> CHANGELOG.md
+          # Insert the new release header right after [Unreleased]
+          sed -i "0,/^## \[Unreleased\]$/s//## [Unreleased]\\n\\n## [$version] - $today/" CHANGELOG.md
+
+      - name: Extract release notes from CHANGELOG
+        id: release_notes
+        run: |
+          version="${{ steps.next_version.outputs.version }}"
+          tag="v$version"
+          # Extract lines between the version header and the next ## header.
+          # Trim surrounding blank lines.
+          awk "/^## \\[$version\\]/{found=1; next} found && /^## /{exit} found{print}" CHANGELOG.md \
+            | sed '/./,$!d' | sed -e :a -e '/^\s*$/{$d;N;ba}' > release-notes.md
+          if [[ ! -s release-notes.md ]]; then
+            echo "(No changelog entries found for $version)" > release-notes.md
+          fi
+          prev_tag=$(git tag --sort=-version:refname | head -1)
+          if [[ -n "$prev_tag" ]]; then
+            echo "" >> release-notes.md
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${prev_tag}...${tag}" >> release-notes.md
           fi
 
       - name: Commit changes
         id: commit
-        shell: bash
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add CHANGELOG.md
-          git commit -m "chore: bump version to ${{ steps.bump_version.outputs.new_tag }}"
-          git push origin ${{ github.ref_name }}
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.event.inputs.version_bump }}" != "no-bump" ]]; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git add CHANGELOG.md
+            git commit -m "chore: bump version to ${{ steps.next_version.outputs.version }}"
+            git push origin ${{ github.ref_name }}
+            echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          else
+            echo "Skipping commit (no-bump selected)"
+            echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Draft Release
-        uses: softprops/action-gh-release@v2
+        id: create_draft_release
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
-          tag_name: ${{ steps.bump_version.outputs.new_tag }}
+          tag_name: ${{ steps.next_version.outputs.tag }}
           target_commitish: ${{ steps.commit.outputs.sha }}
-          generate_release_notes: true
+          body_path: release-notes.md
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Add release link to summary
         run: |
-          release_url="https://github.com/${{ github.repository }}/releases/tag/${{ steps.bump_version.outputs.new_tag }}"
           {
             echo "## Release prepared"
             echo ""
-            echo "- Tag: \`${{ steps.bump_version.outputs.new_tag }}\`"
-            echo "- Draft release: [$release_url]($release_url)"
+            echo "- Tag: \`${{ steps.next_version.outputs.tag }}\`"
+            echo "- Draft release: [${{ steps.create_draft_release.outputs.url }}](${{ steps.create_draft_release.outputs.url }})"
           } >> "$GITHUB_STEP_SUMMARY"
