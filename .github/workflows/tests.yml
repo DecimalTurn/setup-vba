@@ -10,6 +10,7 @@ on:
       - main
     paths-ignore:
       - "**/README.md"
+      - "**/CHANGELOG.md"
       - ".gitattributes"
       - ".devcontainer/**"
       - ".github/workflows/post_release.yml"
