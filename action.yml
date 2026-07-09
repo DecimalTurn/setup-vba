@@ -18,6 +18,10 @@ inputs:
     description: "Chocolatey package used to install Office when install-office=true."
     required: false
     default: "office365proplus"
+  office-language:
+    description: "Language/locale code for Office installation (e.g. fr-fr, de-de, es-es). Only used when install-office=true."
+    required: false
+    default: ""
 
 outputs:
   office-apps:
@@ -31,7 +35,13 @@ runs:
       if: inputs.install-office == 'true'
       id: install_office
       shell: pwsh
-      run: choco install "${{ inputs.office-package }}" -y
+      run: |
+        $language = "${{ inputs.office-language }}"
+        if ($language) {
+          choco install "${{ inputs.office-package }}" -y --params "/Language:$language"
+        } else {
+          choco install "${{ inputs.office-package }}" -y
+        }
 
     - name: "Display Chocolatey logs if install fails"
       if: failure() && steps.install_office.outcome == 'failure'

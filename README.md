@@ -22,6 +22,8 @@ It performs three setup tasks:
   - Set to `false` if Office is already installed on the runner.
 - `office-package` (default: `office365proplus`)
   - Chocolatey package used when `install-office=true`.
+- `office-language` (default: `""`)
+  - Language/locale code passed to the Chocolatey package when `install-office=true`. For example `fr-fr` for French, `de-de` for German, `es-es` for Spanish. When unset, Office defaults to matching the OS language (which for the GitHub runners is en-us).
 
 ## Outputs
 
@@ -77,5 +79,17 @@ on:
             subject-name: "VBA-Enabled-Documents"
             subject-digest: sha256:${{ steps.upload.outputs.artifact-digest }}
 ```
+
+---
+
+> **💡 Offline / self-hosted runner?** If Office is already installed, set `install-office: false` to skip the Chocolatey install step.
+
+> **🇫🇷 French locale?** Use `office-language: fr-fr` (or `fr-ca` for Canadian French) to install Office in French:
+> ```yaml
+> - name: "Setup VBA runtime"
+>   uses: DecimalTurn/setup-vba@v0
+>   with:
+>     office-language: fr-fr
+> ```
 
 
