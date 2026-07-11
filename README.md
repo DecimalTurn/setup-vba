@@ -56,7 +56,7 @@ on:
         - name: "Checkout"
           uses: actions/checkout@v5
         - name: "Setup VBA runtime"
-          uses: DecimalTurn/setup-vba@75c6ce5e714186234ef9090c1c77537a60bd7339 #v0.1.1
+          uses: DecimalTurn/setup-vba@1a34c76cc5d0e2ae3f1da2b008a4aa097da59f23 #v0.3.0
           with:
             office-apps: Excel,Word,PowerPoint,Access
         - name: "Build VBA-Enabled Documents"
