@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-11
+
 ### Added
 
 - **Selective Office install**: The `office-apps` input now controls which apps are actually installed. Only the listed apps are installed; all others are excluded via the [ODT `<ExcludeApp>`](https://learn.microsoft.com/en-us/microsoft-365-apps/deploy/office-deployment-tool-configuration-options#excludeapp-element) element to reduce CI installation time.
