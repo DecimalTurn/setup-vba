@@ -16,8 +16,8 @@ It performs three setup tasks:
 ## Inputs
 
 - `office-apps` (default: `Excel,Word,PowerPoint,Access`)
-  - Comma-separated list of Office apps to prepare.
-  - Supported values: `Excel`, `Word`, `PowerPoint`, `Access`.
+  - Comma-separated list of Office apps to prepare. **Only these apps are installed** — all others are excluded from the Office installation for shorter installation times.
+  - Supported values: `Access`, `Excel`, `Outlook`, `PowerPoint`, `Publisher`, `Word`
 - `install-office` (default: `true`)
   - Set to `false` if Office is already installed on the runner.
 - `office-package` (default: `office365proplus`)

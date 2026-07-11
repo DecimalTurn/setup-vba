@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - `office-language` input to install Office in a specific locale (e.g. `fr-fr`, `de-de`).
 
+### Changed
+
+- **Selective Office install**: The `office-apps` input now controls which apps are actually installed. Only the listed apps are installed; all others are excluded via the [ODT `<ExcludeApp>`](https://learn.microsoft.com/en-us/microsoft-365-apps/deploy/office-deployment-tool-configuration-options#excludeapp-element) element to reduce CI installation time.
+
 ## [0.1.2] - 2026-04-09
 
 ### Added

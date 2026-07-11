@@ -7,7 +7,7 @@ branding:
 
 inputs:
   office-apps:
-    description: "Comma-separated Office apps to prepare (Excel, Word, PowerPoint, Access)."
+    description: "Comma-separated Office apps to install and prepare. Only listed apps are installed; all others are excluded via ODT ExcludeApp to reduce installation time. Supported: Access, Excel, Outlook, PowerPoint, Publisher, Word."
     required: false
     default: "Excel,Word,PowerPoint,Access"
   install-office:
@@ -36,12 +36,65 @@ runs:
       id: install_office
       shell: pwsh
       run: |
-        $language = "${{ inputs.office-language }}"
-        if ($language) {
-          choco install "${{ inputs.office-package }}" -y --params "/Language:$language"
-        } else {
-          choco install "${{ inputs.office-package }}" -y
+        $ErrorActionPreference = "Stop"
+
+        # Build the list of ODT ExcludeApp IDs to exclude (all apps NOT in office-apps).
+        # All known Click-to-Run app IDs that ship with O365ProPlusRetail:
+        $allOdtAppIds = @(
+          "Access", "Excel", "Groove", "Lync", "OneDrive", "OneNote",
+          "Outlook", "OutlookForWindows", "PowerPoint", "Publisher", "Teams", "Word"
+        )
+
+        # Map user-facing names to ODT IDs (they are the same, but case-insensitive matching).
+        $wantedRaw = "${{ inputs.office-apps }}" -split "," | ForEach-Object { $_.Trim() }
+        $wanted = @()
+        foreach ($raw in $wantedRaw) {
+          if (-not $raw) { continue }
+          $match = $allOdtAppIds | Where-Object { $_ -ieq $raw } | Select-Object -First 1
+          if ($match) { $wanted += $match }
         }
+        if ($wanted.Count -eq 0) {
+          throw "No valid Office apps found in office-apps input. Valid IDs: $($allOdtAppIds -join ', ')"
+        }
+
+        $excludeIds = $allOdtAppIds | Where-Object { $_ -notin $wanted }
+        Write-Host "Installing Office apps:   $($wanted -join ', ')"
+        Write-Host "Excluding Office apps:    $($excludeIds -join ', ')"
+
+        # Generate ODT configuration XML with ExcludeApp elements.
+        $excludeXml = ($excludeIds | ForEach-Object { "      <ExcludeApp ID=`"$_`" />" }) -join "`n"
+        $languageId = "${{ inputs.office-language }}"
+        if (-not $languageId) { $languageId = "MatchOS" }
+
+        $configXml = @"
+        <Configuration>
+          <Add OfficeClientEdition="64" Channel="MonthlyEnterprise">
+            <Product ID="O365ProPlusRetail">
+              <Language ID="$languageId" />
+        $excludeXml
+            </Product>
+          </Add>
+          <Display Level="None" AcceptEULA="TRUE" />
+        </Configuration>
+        "@
+
+        $configPath = Join-Path $env:RUNNER_TEMP "odt-config.xml"
+        $configXml | Out-File -FilePath $configPath -Encoding utf8
+        Write-Host "ODT config written to: $configPath"
+        Write-Host "---- config.xml ----"
+        Write-Host $configXml
+        Write-Host "---------------------"
+
+        # Build choco params: ConfigPath is always set; Language is set separately
+        # only when the user explicitly provides it (ConfigPath handles MatchOS).
+        $chocoParams = "/ConfigPath:`"$configPath`""
+        $userLanguage = "${{ inputs.office-language }}"
+        if ($userLanguage) {
+          $chocoParams += " /Language:$userLanguage"
+        }
+
+        Write-Host "Running: choco install ${{ inputs.office-package }} -y --params `"$chocoParams`""
+        choco install "${{ inputs.office-package }}" -y --params "$chocoParams"
 
     - name: "Display Chocolatey logs if install fails"
       if: failure() && steps.install_office.outcome == 'failure'
