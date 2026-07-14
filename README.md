@@ -25,11 +25,6 @@ It performs three setup tasks:
 - `office-language` (default: `""`)
   - Language/locale code passed to the Chocolatey package when `install-office=true`. For example `fr-fr` for French, `de-de` for German, `es-es` for Spanish. When unset, Office defaults to matching the OS language (which for the GitHub runners is en-us).
 
-## Outputs
-
-- `office-apps`
-  - Normalized comma-separated app list that was prepared.
-
 ## Example usage
 
 
