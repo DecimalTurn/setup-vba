@@ -7,7 +7,7 @@ Sub Demo()
     ' FormulaLocal syntax (e.g. list separator) depends on the Excel UI language
     ThisWorkbook.Sheets("Sheet1").Range("A1").FormulaLocal = "=SUM(1,2,3)"
 
-    MsgBox "Hello, World!"
+    'MsgBox "Hello, World!"
 End Sub
 
 'This code will be called via COM to test if the VBA import was successful
