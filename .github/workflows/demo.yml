@@ -85,8 +85,12 @@ jobs:
         shell: pwsh
         run: |
           . "./.github/scripts/Screenshot.ps1"
+          . "./.github/scripts/Minimize.ps1"
           $screenshotDir = Join-Path $env:GITHUB_WORKSPACE "tests/screenshots"
           New-Item -ItemType Directory -Path $screenshotDir -Force | Out-Null
+          Minimize-Window "Administrator: C:\Program Files\PowerShell\7\pwsh.EXE"
+          Minimize-Window "Administrator: C:\actions"
+          Minimize-Window "C:\ProgramData\GitHub\HostedComputeAgent\hosted-compute-agent"
           Take-Screenshot -OutputPath (Join-Path $screenshotDir "LocaleFormulaFailure_{{timestamp}}.png")
       - name: "Upload locale formula failure screenshot"
         if: ${{ failure() && steps.verify_locale_formula.outcome == 'failure' }}
