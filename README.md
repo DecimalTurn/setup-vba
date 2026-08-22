@@ -23,7 +23,9 @@ It performs three setup tasks:
 - `office-package` (default: `office365proplus`)
   - Chocolatey package used when `install-office=true`.
 - `office-language` (default: `""`)
-  - Language/locale code passed to the Chocolatey package when `install-office=true`. For example `fr-fr` for French, `de-de` for German, `es-es` for Spanish. When unset, Office defaults to matching the OS language (which for the GitHub runners is en-us).
+  - Language/locale code passed to the Chocolatey package when `install-office=true`. See Microsoft's [supported languages and culture codes](https://learn.microsoft.com/en-us/microsoft-365-apps/deploy/overview-deploying-languages-microsoft-365-apps#languages-culture-codes-and-companion-proofing-languages) for the complete list.
+  - When unset or left empty, Office matches the OS language which on GitHub-hosted Windows runners is `en-US` making it the default.
+  - Examples include `en-US` (English, United States), `en-GB` (English, United Kingdom), `fr-FR` (French, France), `fr-CA` (French, Canada), `de-DE` (German), `es-ES` (Spanish, Spain), `ja-JP` (Japanese), `pt-BR` (Portuguese, Brazil), and `zh-CN` (Chinese, Simplified). Culture codes are case-insensitive, so lowercase values such as `fr-fr` also work.
 
 ## Example usage
 
