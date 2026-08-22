@@ -29,13 +29,13 @@ jobs:
         id: build_vba
         uses: DecimalTurn/VBA-Build@73d88e15e27d1e80aa402c60981175a491281d25 # v2.0.0
         with:
-          source-dir: "./src"
+          source-dir: "./tests"
         timeout-minutes: 20
       - name: "Verify locale-sensitive formula"
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $workbookPath = Join-Path $PWD "src/out/ExcelWorkbook.xlsm"
+          $workbookPath = Join-Path $PWD "tests/out/ExcelWorkbook.xlsm"
           $outputPath = Join-Path (Split-Path $workbookPath) "ExcelWorkbook_LocaleTest.txt"
 
           if (Test-Path $outputPath) { Remove-Item $outputPath -Force }
@@ -82,7 +82,7 @@ jobs:
         id: "upload"
         with:
           name: "VBA-Enabled-Documents"
-          path: "./src/out/*"
+          path: "./tests/out/*"
           if-no-files-found: warn
       - name: "Attestation"
         if: ${{ !github.event.repository.private }}
