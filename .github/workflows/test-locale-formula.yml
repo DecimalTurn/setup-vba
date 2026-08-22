@@ -1,0 +1,47 @@
+name: Test Locale-Dependent VBA (Excel)
+
+on:
+  workflow_dispatch:
+    inputs:
+      office-language:
+        description: 'Office UI language to install (e.g. en-en, fr-fr)'
+        required: false
+        default: 'en-en'
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**/README.md"
+      - "**/CHANGELOG.md"
+      - ".gitattributes"
+      - ".devcontainer/**"
+      - ".github/workflows/post_release.yml"
+      - ".github/workflows/prepare_release.yml"
+
+jobs:
+  test-locale-formula:
+    runs-on: windows-2025
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run setup-vba
+        uses: ./
+        with:
+          office-apps: Excel
+          office-language: ${{ inputs.office-language || 'en-en' }}
+
+      - name: Build Excel fixture from source
+        uses: DecimalTurn/VBA-Build@73d88e15e27d1e80aa402c60981175a491281d25 # v2.0.0
+        with:
+          source-dir: "./tests"
+        timeout-minutes: 20
+
+      - name: Test locale-dependent formula
+        shell: pwsh
+        run: ./.github/scripts/Test-ExcelWorkbook.ps1
