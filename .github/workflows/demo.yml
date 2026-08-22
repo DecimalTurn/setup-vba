@@ -25,7 +25,7 @@ jobs:
         uses: DecimalTurn/setup-vba@797e4a232699a98507cb4411d5bea3697427ad57 # v0.3.0
         with:
           office-apps: "Excel"
-          #office-language: en-en
+          office-language: fr-FR
       - name: "Build VBA-Enabled Documents"
         id: build_vba
         uses: DecimalTurn/VBA-Build@73d88e15e27d1e80aa402c60981175a491281d25 # v2.0.0
