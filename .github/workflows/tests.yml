@@ -1,4 +1,6 @@
 name: Test Setup VBA
+# This GitHub Action ensures that the setup action this its job properly 
+# and Office automation is fully configured and available
 
 on:
   workflow_dispatch:
