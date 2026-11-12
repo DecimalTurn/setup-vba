@@ -30,6 +30,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Test Office diagnostics collection
+        shell: pwsh
+        run: ./tests/Collect-OfficeDiagnostics.Tests.ps1
+
       - name: Run setup-vba (using own action)
         id: setup_vba
         uses: ./
