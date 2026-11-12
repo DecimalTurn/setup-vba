@@ -31,22 +31,6 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: "Initialize Office diagnostics"
-      if: inputs.install-office == 'true'
-      id: office_diagnostics
-      shell: pwsh
-      run: |
-        $ErrorActionPreference = "Stop"
-        $diagnosticsId = [guid]::NewGuid().ToString()
-        $diagnosticsPath = Join-Path $env:RUNNER_TEMP "setup-vba-odt-diagnostics/$diagnosticsId"
-        New-Item -ItemType Directory -Path $diagnosticsPath -Force | Out-Null
-        $chocoLog = Join-Path $env:ProgramData "chocolatey/logs/chocolatey.log"
-        $lineCount = if (Test-Path $chocoLog) { @(Get-Content $chocoLog).Count } else { 0 }
-        "path=$diagnosticsPath" >> $env:GITHUB_OUTPUT
-        "id=$diagnosticsId" >> $env:GITHUB_OUTPUT
-        "started=$([DateTime]::UtcNow.ToString('o'))" >> $env:GITHUB_OUTPUT
-        "choco-lines=$lineCount" >> $env:GITHUB_OUTPUT
-
     - name: "Install Office"
       if: inputs.install-office == 'true'
       id: install_office
@@ -96,7 +80,6 @@ runs:
 
         $configPath = Join-Path $env:RUNNER_TEMP "odt-config.xml"
         $configXml | Out-File -FilePath $configPath -Encoding utf8
-        Copy-Item $configPath -Destination "${{ steps.office_diagnostics.outputs.path }}/odt-config.xml"
         Write-Host "ODT config written to: $configPath"
         Write-Host "---- config.xml ----"
         Write-Host $configXml
@@ -111,36 +94,7 @@ runs:
         }
 
         Write-Host "Running: choco install ${{ inputs.office-package }} -y --params `"$chocoParams`""
-        @(
-          "Working directory: $((Get-Location).Path)"
-          "Command: choco install ${{ inputs.office-package }} -y --params `"$chocoParams`""
-        ) | Set-Content -Path "${{ steps.office_diagnostics.outputs.path }}/chocolatey-invocation.txt"
         choco install "${{ inputs.office-package }}" -y --params "$chocoParams"
-        $chocoExitCode = $LASTEXITCODE
-        "Chocolatey exit code: $chocoExitCode" | Add-Content -Path "${{ steps.office_diagnostics.outputs.path }}/chocolatey-invocation.txt"
-        if ($chocoExitCode -ne 0) { exit $chocoExitCode }
-
-    - name: "Collect Office diagnostics"
-      if: always() && steps.office_diagnostics.outcome == 'success' && steps.install_office.outcome != 'skipped'
-      shell: pwsh
-      env:
-        DIAGNOSTICS_PATH: ${{ steps.office_diagnostics.outputs.path }}
-        INSTALL_STARTED: ${{ steps.office_diagnostics.outputs.started }}
-        CHOCO_LOG_LINES: ${{ steps.office_diagnostics.outputs.choco-lines }}
-      run: |
-        & "${{ github.action_path }}/scripts/Collect-OfficeDiagnostics.ps1" `
-          -Destination $env:DIAGNOSTICS_PATH `
-          -Started $env:INSTALL_STARTED `
-          -ChocolateyLog (Join-Path $env:ProgramData "chocolatey/logs/chocolatey.log") `
-          -ChocolateyLogLines ([int]$env:CHOCO_LOG_LINES)
-
-    - name: "Upload Office diagnostics"
-      if: always() && steps.office_diagnostics.outcome == 'success' && steps.install_office.outcome != 'skipped'
-      uses: actions/upload-artifact@v7
-      with:
-        name: setup-vba-odt-diagnostics-${{ github.job }}-${{ steps.office_diagnostics.outputs.id }}
-        path: ${{ steps.office_diagnostics.outputs.path }}
-        if-no-files-found: warn
 
     - name: "Display Chocolatey logs if install fails"
       if: failure() && steps.install_office.outcome == 'failure'

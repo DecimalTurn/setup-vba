@@ -81,10 +81,6 @@ on:
 
 > **💡 Offline / self-hosted runner?** If Office is already installed, set `install-office: false` to skip the Chocolatey install step.
 
-When Office installation is enabled, the action uploads a uniquely named `setup-vba-odt-diagnostics-*` artifact even if installation fails. It contains the generated configuration, Chocolatey invocation and install log, available ODT download command details and version, and recent top-level `.log` files from the runner and process temporary directories. The bootstrapper extraction log, when present, is kept separately under `extraction/`. File paths are printed in the job log. Chocolatey can delete the extracted ODT files after a successful install, so its executable version or extraction log may be unavailable.
-
-These logs may contain machine paths, configuration details, or unrelated recently written temporary logs. Review artifact access and retention before using the action on a self-hosted runner.
-
 > **🇫🇷 French locale?** Use `office-language: fr-fr` (or `fr-ca` for Canadian French) to install Office in French:
 > ```yaml
 > - name: "Setup VBA runtime"
