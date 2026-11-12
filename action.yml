@@ -94,17 +94,30 @@ runs:
         }
 
         Write-Host "Running: choco install ${{ inputs.office-package }} -y --params `"$chocoParams`""
-        choco install "${{ inputs.office-package }}" -y --params "$chocoParams"
+        choco install "${{ inputs.office-package }}" -y --params "$chocoParams" | Tee-Object -Variable installOutput
+        $installExitCode = $LASTEXITCODE
+        if ($installExitCode -ne 0) {
+          $downloadFailure = [regex]::Match(($installOutput -join "`n"), "ERROR: Running \[[^\r\n]* /download [^\r\n]*Exit code was '(-?\d+)'")
+          if ($downloadFailure.Success) {
+            "download-exit-code=$($downloadFailure.Groups[1].Value)" >> $env:GITHUB_OUTPUT
+          }
+          exit $installExitCode
+        }
 
     - name: "Display Chocolatey logs if install fails"
       if: failure() && steps.install_office.outcome == 'failure'
       shell: pwsh
+      env:
+        DOWNLOAD_EXIT_CODE: ${{ steps.install_office.outputs.download-exit-code }}
       run: |
         if (Test-Path -Path "C:\ProgramData\chocolatey\logs\chocolatey.log") {
           Write-Host "============ Chocolatey Log Contents ============"
           Write-Host "Last 1000 lines of Chocolatey log:"
           Get-Content -Path "C:\ProgramData\chocolatey\logs\chocolatey.log" -Tail 1000
           Write-Host "============ End of Chocolatey Logs ============="
+        }
+        if ($env:DOWNLOAD_EXIT_CODE) {
+          Write-Host "::error::Office installer failed to download assets from Microsoft needed for Office installation (ODT exit code: $env:DOWNLOAD_EXIT_CODE)."
         }
 
     - name: "Setup VBA environment"
