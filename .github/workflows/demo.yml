@@ -22,7 +22,7 @@ jobs:
           install-office: "true"
       - name: "Build VBA-Enabled Documents"
         id: build_vba
-        uses: DecimalTurn/VBA-Build@73d88e15e27d1e80aa402c60981175a491281d25 # v2.0.0
+        uses: DecimalTurn/VBA-Build@7670fd14fbdb526381986c3d41c690c1fc3157c4 # v3.0.1
         with:
           source-dir: "./src"
         timeout-minutes: 20
