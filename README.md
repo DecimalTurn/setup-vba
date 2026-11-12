@@ -81,6 +81,8 @@ on:
 
 > **💡 Offline / self-hosted runner?** If Office is already installed, set `install-office: false` to skip the Chocolatey install step.
 
+If the Office Deployment Tool's `/download` step fails, the action prints a short error after the Chocolatey logs identifying the download failure and its exit code. This identifies the failed operation, not the underlying cause (such as a connectivity issue or Microsoft outage).
+
 > **🇫🇷 French locale?** Use `office-language: fr-fr` (or `fr-ca` for Canadian French) to install Office in French:
 > ```yaml
 > - name: "Setup VBA runtime"
